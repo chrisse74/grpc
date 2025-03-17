@@ -20,6 +20,7 @@
 #include <grpc/support/port_platform.h>
 #include <grpc/support/thd_id.h>
 #include <inttypes.h>
+#include <openssl/crypto.h>
 
 #include <atomic>
 #include <chrono>
@@ -44,8 +45,6 @@
 #include "src/core/util/examine_stack.h"
 #include "src/core/util/thd.h"
 #include "src/core/util/time.h"
-
-#include <openssl/crypto.h>
 #if OPENSSL_VERSION_NUMBER >= 0x30000000
 #include "src/core/lib/surface/init_internally.h"
 #endif
@@ -175,13 +174,12 @@ thread_local WorkQueue* g_local_queue = nullptr;
 class OpenSSLGuard {
  public:
   ~OpenSSLGuard();
+
  private:
   const grpc_core::KeepsGrpcInitialized m_keepsGrpcInitialized;
 };
 
-OpenSSLGuard::~OpenSSLGuard() {
-  OPENSSL_thread_stop();
-}
+OpenSSLGuard::~OpenSSLGuard() { OPENSSL_thread_stop(); }
 #endif
 
 // -------- WorkStealingThreadPool --------
@@ -272,7 +270,9 @@ void WorkStealingThreadPool::WorkStealingThreadPoolImpl::StartThread() {
       "event_engine",
       [](void* arg) {
 #if OPENSSL_VERSION_NUMBER >= 0x30000000
-        const OpenSSLGuard openSSLGuard; // Make sure OPENSSL thread local information is cleared before gRPC stops
+        const OpenSSLGuard
+            openSSLGuard;  // Make sure OPENSSL thread local information is
+                           // cleared before gRPC stops
 #endif
         ThreadState* worker = static_cast<ThreadState*>(arg);
         worker->ThreadBody();
